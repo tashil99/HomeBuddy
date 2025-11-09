@@ -12,11 +12,11 @@ def main():
     os.environ["ULTRALYTICS_CACHE"] = "ram"  # speed up by caching to RAM
 
     # Load lightweight YOLOv8 model
-    model = YOLO("yolov8m.pt")
+    model = YOLO("yolov8n.pt")
 
     # Train (GPU-optimized config)
     results = model.train(
-        data="../dataset/data.yaml",
+        data="C:/Middlesex/HomeBuddy/merged-dataset/data.yaml",
         epochs=20,
         imgsz=640,
         batch=16,
