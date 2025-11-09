@@ -3,14 +3,16 @@ import cv2
 import numpy as np
 from typing import Dict, List, Tuple
 
-
-def check_image_quality(
+# This function checks the quality of all images in a directory.
+# If issues are found, user confirmation is required for deletion.
+def check_and_clean_quality(
     image_dir: str,
+    label_dir: str = None,
     min_size: Tuple[int, int] = (64, 64),
     max_aspect_ratio: float = 5.0,
     low_variance_thresh: float = 3.0,
-    valid_ext: Tuple[str, ...] = (".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp"),
-) -> Dict[str, List[str]]:
+    valid_ext: Tuple[str, ...] = (".jpg", ".jpeg", ".png"),
+):
 
     issues: Dict[str, List[str]] = {
         "unreadable": [],
@@ -21,12 +23,16 @@ def check_image_quality(
     }
 
     min_w, min_h = min_size
+    total_files = 0
+
+    print(f"\nScanning images in: {image_dir}\n")
 
     for root, _, files in os.walk(image_dir):
-        for fname in files:
-            if not fname.lower().endswith(valid_ext):
+        for filename in files:
+            if not filename.lower().endswith(valid_ext):
                 continue
-            path = os.path.join(root, fname)
+            path = os.path.join(root, filename)
+            total_files += 1
 
             img = cv2.imread(path, cv2.IMREAD_COLOR)
             if img is None:
@@ -50,98 +56,75 @@ def check_image_quality(
             if var < low_variance_thresh:
                 issues["low_variance"].append(f"{path} (var={var:.2f})")
 
-    return issues
+    print(f"Total images checked: {total_files}\n")
 
-
-def print_quality_report(issues: Dict[str, List[str]]) -> None:
-    any_issues = any(issues.values())
-    if not any_issues:
-        print("No image quality issues found")
+    # Check if any issues found
+    if not any(issues.values()):
+        print("All images meet the quality standards.")
         return
 
-    for key in ["unreadable", "zero_size", "too_small", "extreme_aspect", "low_variance"]:
-        entries = issues.get(key, [])
-        if entries:
+    print("Image quality issues found:\n")
+    for key, files in issues.items():
+        if files:
             title = key.replace("_", " ").title()
-            print(f"{title} ({len(entries)}):")
-            for e in entries:
-                print(e)
+            print(f" - {title}: {len(files)}")
 
+    print("\nAvailable issue types: unreadable, zero_size, too_small, extreme_aspect, low_variance")
+    choice = input("Enter issue types to delete (comma separated) or 'all': ").strip().lower()
 
-def remove_low_quality_images(
-    issues: Dict[str, List[str]],
-    issue_types_to_remove: List[str] = None,
-    label_dir: str = None,
-) -> None:
-
-    if issue_types_to_remove is None:
+    if choice == 'all':
         issue_types_to_remove = list(issues.keys())
+    else:
+        issue_types_to_remove = [c.strip() for c in choice.split(',') if c.strip() in issues]
 
     files_to_delete = []
     for issue_type in issue_types_to_remove:
-        if issue_type in issues:
-            for entry in issues[issue_type]:
-                # Extract just the path (entries may have extra info like "(640x480)")
-                path = entry.split(" (")[0]
-                files_to_delete.append((path, issue_type))
+        for entry in issues[issue_type]:
+            img_path = entry.split(" (")[0]
+            files_to_delete.append((img_path, issue_type))
 
     if not files_to_delete:
-        print("No files to delete.")
+        print("\nNo files found for the selected issue types.")
         return
 
-    print(f"\n{'='*70}")
-    print(f"{len(files_to_delete)} images with quality issues found!")
-    print(f"{'='*70}\n")
+    print(f"{len(files_to_delete)} files to be deleted!\n")
 
-    # Prepare all file pairs
-    all_pairs = []
-    for img_path, issue_type in files_to_delete:
-        # Find corresponding label file
+    for idx, (img_path, issue_type) in enumerate(files_to_delete, 1):
         if label_dir:
-            img_basename = os.path.basename(img_path)
-            label_name = os.path.splitext(img_basename)[0] + ".txt"
+            label_name = os.path.splitext(os.path.basename(img_path))[0] + ".txt"
             label_path = os.path.join(label_dir, label_name)
         else:
-            img_dir = os.path.dirname(img_path)
-            label_dir_auto = img_dir.replace("/images", "/labels").replace("\\images", "\\labels")
-            img_basename = os.path.basename(img_path)
-            label_name = os.path.splitext(img_basename)[0] + ".txt"
-            label_path = os.path.join(label_dir_auto, label_name)
+            label_path = img_path.replace("\\images\\", "\\labels\\").replace("/images/", "/labels/").rsplit(".", 1)[0] + ".txt"
 
-        all_pairs.append((img_path, label_path, issue_type))
-
-    # Display all files
-    for idx, (img_path, label_path, issue_type) in enumerate(all_pairs, 1):
         print(f"{idx}. Issue: {issue_type}")
-        print(f"   Image: {img_path}")
-        if os.path.exists(label_path):
-            print(f"   Label: {label_path}")
-        else:
-            print(f"   Label: {label_path} (not found)")
+        print(f"Image: {img_path}")
+        print(f"Label: {label_path if os.path.exists(label_path) else label_path + ' (not found)'}")
         print()
 
-    # Ask for confirmation once
-    print(f"{'='*70}")
-    response = input(f"Delete all {len(files_to_delete)} images and their labels? (y/yes/n/no): ").strip().lower()
-
-    if response not in ['y', 'yes']:
-        print("\nDeletion cancelled!")
+    confirm = input(f"\nDo you want to delete all {len(files_to_delete)} images and their labels? (y/n): ").strip().lower()
+    if confirm != 'y':
+        print("\nNo files were deleted.")
         return
 
     deleted_images = 0
     deleted_labels = 0
 
-    print(f"\n{'='*70}")
-    print("Deleting files...")
-    print(f"{'='*70}\n")
+    print(f"\n{'=' * 70}")
+    print("Deleting files...\n")
 
-    for img_path, label_path, _ in all_pairs:
+    for img_path, _ in files_to_delete:
+        if label_dir:
+            label_name = os.path.splitext(os.path.basename(img_path))[0] + ".txt"
+            label_path = os.path.join(label_dir, label_name)
+        else:
+            label_path = img_path.replace("\\images\\", "\\labels\\").replace("/images/", "/labels/").rsplit(".", 1)[0] + ".txt"
+
         # Delete image
         if os.path.exists(img_path):
             try:
                 os.remove(img_path)
                 deleted_images += 1
-                print(f"Deleted: {img_path}")
+                print(f"Deleted image: {img_path}")
             except Exception as e:
                 print(f"Error deleting {img_path}: {e}")
 
@@ -150,28 +133,19 @@ def remove_low_quality_images(
             try:
                 os.remove(label_path)
                 deleted_labels += 1
-                print(f"Deleted: {label_path}")
+                print(f"Deleted label: {label_path}")
             except Exception as e:
                 print(f"Error deleting {label_path}: {e}")
 
-    # Summary
     print("****SUMMARY****")
     print(f"Total images deleted: {deleted_images}")
     print(f"Total labels deleted: {deleted_labels}")
 
 
-if __name__ == "__main__":
-    # Path of directory to check
-    target_dir = "../dataset/laptop/train/images"
-    results = check_image_quality(
-        target_dir,
-        min_size=(400, 400),
-        max_aspect_ratio=6.0,
-        low_variance_thresh=2.0,
-    )
-    print_quality_report(results)
-
-    remove_low_quality_images(
-        results,
-        issue_types_to_remove=["too_small"],
-    )
+check_and_clean_quality(
+    image_dir="C:/Middlesex/HomeBuddy/merged-dataset/test/images",
+    label_dir="C:/Middlesex/HomeBuddy/merged-dataset/test/labels",
+    min_size=(416, 416),
+    max_aspect_ratio=10.0,
+    low_variance_thresh=4.0,
+)

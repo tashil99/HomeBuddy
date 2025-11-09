@@ -33,7 +33,6 @@ def check_and_clean_dataset(image_dir, label_dir=None):
     if choice == 'y':
         deleted_count = 0
         for img_path in corrupted_files:
-            # Delete image
             try:
                 os.remove(img_path)
                 deleted_count += 1
@@ -48,7 +47,7 @@ def check_and_clean_dataset(image_dir, label_dir=None):
                 if os.path.exists(label_path):
                     try:
                         os.remove(label_path)
-                        print(f"🗑 Deleted label: {label_path}")
+                        print(f"Deleted label: {label_path}")
                     except Exception as e:
                         print(f"Error deleting label {label_path}: {e}")
 
@@ -56,4 +55,7 @@ def check_and_clean_dataset(image_dir, label_dir=None):
     else:
         print("\nNo files were deleted.")
 
-check_and_clean_dataset(image_dir="../dataset/phone/train/images", label_dir="../dataset/phone/train/labels")
+check_and_clean_dataset(
+    image_dir="C:/Middlesex/HomeBuddy/merged-dataset/test/images",
+    label_dir="C:/Middlesex/HomeBuddy/merged-dataset/test/labels"
+)
