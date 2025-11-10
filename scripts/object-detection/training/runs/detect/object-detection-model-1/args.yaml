@@ -103,4 +103,4 @@ auto_augment: randaugment
 erasing: 0.4
 cfg: null
 tracker: botsort.yaml
-save_dir: C:\Users\tanuj\PycharmProjects\HomeBuddy\scripts\object-detection\training\runs\detect\object-detection-model-1
+save_dir: C:\Users\tanuj\PycharmProjects\HomeBuddy\scripts\object-detection\training\runs\detect\object-detection-model-12

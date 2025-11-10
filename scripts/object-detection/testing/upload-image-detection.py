@@ -6,7 +6,7 @@ import tkinter as tk
 from tkinter import filedialog
 
 # --- Paths ---
-MODEL_PATH = "scripts/object-detection/training/runs/detect/object-detection-model-1/weights/best.pt"
+MODEL_PATH = "C:/Users/tanuj/PycharmProjects/HomeBuddy/scripts/object-detection/training/runs/detect/object-detection-model-2/weights/best.pt"
 SAVE_DIR = "C:/Users/tanuj/PycharmProjects/HomeBuddy/scripts/training/runs/detect"
 
 # --- Prepare save folder ---
