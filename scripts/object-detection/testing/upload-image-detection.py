@@ -4,7 +4,6 @@ from ultralytics import YOLO
 import tkinter as tk
 from tkinter import filedialog
 
-# --- Paths ---
 MODEL_PATH = "C:/Middlesex/HomeBuddy/scripts/object-detection/training/runs/detect/object-detection-model-1/weights/best.pt"
 SAVE_DIR = "C:/Middlesex/HomeBuddy/scripts/object-detection/testing"
 
