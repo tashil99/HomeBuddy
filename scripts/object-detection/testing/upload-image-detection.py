@@ -1,18 +1,11 @@
 import os
-import shutil
 import cv2
 from ultralytics import YOLO
 import tkinter as tk
 from tkinter import filedialog
 
-# --- Paths ---
-MODEL_PATH = "C:/Users/tanuj/PycharmProjects/HomeBuddy/scripts/object-detection/training/runs/detect/object-detection-model-2/weights/best.pt"
-SAVE_DIR = "C:/Users/tanuj/PycharmProjects/HomeBuddy/scripts/training/runs/detect"
-
-# --- Prepare save folder ---
-if os.path.exists(SAVE_DIR):
-    shutil.rmtree(SAVE_DIR)
-os.makedirs(SAVE_DIR, exist_ok=True)
+MODEL_PATH = "C:/Middlesex/HomeBuddy/scripts/object-detection/training/runs/detect/object-detection-model-1/weights/best.pt"
+SAVE_DIR = "C:/Middlesex/HomeBuddy/scripts/object-detection/testing"
 
 # --- Check model exists ---
 if not os.path.exists(MODEL_PATH):
