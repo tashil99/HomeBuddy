@@ -16,7 +16,7 @@ def main():
 
     # Train (GPU-optimized config)
     results = model.train(
-        data="C:/Middlesex/HomeBuddy/merged-dataset/data.yaml",
+        data="C:/Users/tanuj/PycharmProjects/HomeBuddy/merged-dataset/data.yaml",
         epochs=20,
         imgsz=640,
         batch=16,

@@ -6,8 +6,8 @@ import tkinter as tk
 from tkinter import filedialog
 
 # --- Paths ---
-MODEL_PATH = "runs/detect/AI-In-Robotics-CPU-Exp81/weights/best.pt"
-SAVE_DIR = "runs/predict/AI-In-Robotics-CPU-Upload"
+MODEL_PATH = "scripts/object-detection/training/runs/detect/object-detection-model-1/weights/best.pt"
+SAVE_DIR = "C:/Users/tanuj/PycharmProjects/HomeBuddy/scripts/training/runs/detect"
 
 # --- Prepare save folder ---
 if os.path.exists(SAVE_DIR):
