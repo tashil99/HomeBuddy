@@ -1,3 +1,6 @@
+import rospy
+from geometry_msgs.msg import Twist
+
 import queue
 import sounddevice as sd
 import json
@@ -7,7 +10,26 @@ import pyttsx3
 import threading
 from datetime import datetime
 
-MODEL_PATH = "../vosk-model-small-en-us-0.15"
+# -------------------------
+# 1) ROS INITIALIZATION
+# -------------------------
+
+rospy.init_node("voice_control_node", anonymous=True)
+cmd_pub = rospy.Publisher("/cmd_vel", Twist, queue_size=10)
+
+
+def move_robot(linear_x=0.0, angular_z=0.0):
+    msg = Twist()
+    msg.linear.x = linear_x
+    msg.angular.z = angular_z
+    cmd_pub.publish(msg)
+
+
+# -------------------------
+# 2) SPEECH ENGINE SETUP
+# -------------------------
+
+MODEL_PATH = "/home/ubuntu/vosk-model-small-en-us-0.15"
 model = Model(MODEL_PATH)
 recognizer = KaldiRecognizer(model, 16000)
 
@@ -23,7 +45,7 @@ engine.setProperty('volume', 1.0)
 
 def tts_worker():
     while True:
-        text = speech_q.get() 
+        text = speech_q.get()
         if text:
             print(f"Assistant: {text}")
             engine.say(text)
@@ -31,7 +53,6 @@ def tts_worker():
         speech_q.task_done()
 
 
-# Start the TTS thread
 threading.Thread(target=tts_worker, daemon=True).start()
 
 
@@ -39,51 +60,78 @@ def speak(text):
     speech_q.put(text)
 
 
-# AUDIO INPUT CALLBACK
+# -------------------------
+# 3) MICROPHONE CALLBACK
+# -------------------------
+
 def callback(indata, frames, time, status):
     if status:
         print(status)
     audio_q.put(bytes(indata))
 
 
-# COMMAND PROCESSING
+# -------------------------
+# 4) COMMAND LOGIC
+# -------------------------
+
 def process_command(text):
+    text = text.lower()
     understood = False
 
-    if "light" in text:
-        if "on" in text:
-            speak("Okay, turning the lights on.")
-            understood = True
-        elif "off" in text:
-            speak("Got it, turning the lights off.")
-            understood = True
-
-    elif "music" in text and "play" in text:
-        speak("Sure, playing some music.")
+    # MOVEMENT COMMANDS
+    if "forward" in text:
+        speak("Moving forward.")
+        move_robot(0.2, 0)
         understood = True
 
-    elif "temperature" in text or "weather" in text:
-        speak("The room temperature is 23 degrees Celsius.")
+    elif "back" in text or "backward" in text:
+        speak("Reversing.")
+        move_robot(-0.2, 0)
         understood = True
 
+    elif "left" in text:
+        speak("Turning left.")
+        move_robot(0, 0.4)
+        understood = True
+
+    elif "right" in text:
+        speak("Turning right.")
+        move_robot(0, -0.4)
+        understood = True
+
+    elif "stop" in text or "halt" in text:
+        speak("Stopping.")
+        move_robot(0, 0)
+        understood = True
+
+    # EXTRA COMMANDS
     elif "time" in text:
         current_time = datetime.now().strftime("%H:%M")
         speak(f"The current time is {current_time}.")
         understood = True
 
     if not understood:
-        speak("Sorry, I didn’t quite understand that command.")
+        speak("I didn't understand that command.")
 
 
-# LISTEN & RECOGNIZE
+# -------------------------
+# 5) SPEECH RECOGNITION LOOP
+# -------------------------
+
 def listen_and_recognize():
-    with sd.RawInputStream(samplerate=16000, blocksize=8000, dtype='int16',
-                           channels=1, callback=callback):
-        speak("I am now listening for your commands.")
+    with sd.RawInputStream(
+            samplerate=16000,
+            blocksize=8000,
+            dtype='int16',
+            channels=1,
+            callback=callback
+    ):
+        speak("Voice control is active. Say a command.")
         print("Listening...")
 
-        while True:
+        while not rospy.is_shutdown():
             data = audio_q.get()
+
             if recognizer.AcceptWaveform(data):
                 result = json.loads(recognizer.Result())
                 text = result.get("text", "")
@@ -96,6 +144,9 @@ def listen_and_recognize():
                     print(f"…Recognizing: {partial['partial']}", end='\r')
 
 
-if __name__ == "__main__":
-    speak("Voice assistant is online and ready.")
-    listen_and_recognize()
+# -------------------------
+# 6) START
+# -------------------------
+
+speak("Voice assistant is online and ready.")
+listen_and_recognize()
