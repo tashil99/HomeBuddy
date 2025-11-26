@@ -3,7 +3,7 @@ import os
 from ultralytics import YOLO
 import time
 
-MODEL_PATH = "runs/detect/object-detection-training-4/weights/best.pt"
+MODEL_PATH = "C:/Middlesex/HomeBuddy/scripts/object-detection/training/runs/detect/object-detection-model-3/weights/best.pt"
 
 # --- Check model exists ---
 if not os.path.exists(MODEL_PATH):
@@ -25,12 +25,12 @@ def yolo_live_camera_detection():
 
     # Color mapping for your classes
     class_colors = {
-        'chair': (0, 255, 0),  # Green
-        'desk': (255, 0, 0),  # Blue
-        'laptop': (0, 0, 255),  # Red
-        'mouse': (255, 255, 0),  # Cyan
-        'printer': (255, 0, 255),  # Magenta
-        'pen': (0, 255, 255)  # Yellow
+        'book': (0, 255, 0),  # Green
+        'cup': (255, 0, 0),  # Blue
+        'glasses': (0, 0, 255),  # Red
+        'keys': (255, 255, 0),  # Cyan
+        'phone': (255, 0, 255),  # Magenta
+        'shoes': (0, 255, 255)  # Yellow
     }
 
     while True:
