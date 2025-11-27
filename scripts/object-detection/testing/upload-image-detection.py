@@ -5,8 +5,14 @@ from ultralytics import YOLO
 import tkinter as tk
 from tkinter import filedialog
 
-MODEL_PATH = "C:/Middlesex/HomeBuddy/scripts/object-detection/training/runs/detect/object-detection-model-3/weights/best.pt"
-SAVE_DIR = "C:/Middlesex/HomeBuddy/scripts/object-detection/testing"
+# --- Paths ---
+MODEL_PATH = "C:/Users/tanuj/PycharmProjects/HomeBuddy/scripts/object-detection/training/runs/detect/object-detection-model-12/weights/best.pt"
+SAVE_DIR = "C:/Users/tanuj/PycharmProjects/HomeBuddy/scripts/training/runs/detect"
+
+# --- Prepare save folder ---
+if os.path.exists(SAVE_DIR):
+    shutil.rmtree(SAVE_DIR)
+os.makedirs(SAVE_DIR, exist_ok=True)
 
 # --- Check model exists ---
 if not os.path.exists(MODEL_PATH):
