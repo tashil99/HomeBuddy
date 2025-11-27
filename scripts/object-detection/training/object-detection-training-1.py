@@ -12,7 +12,7 @@ def main():
     os.environ["ULTRALYTICS_CACHE"] = "ram"  # speed up by caching to RAM
 
     # Load lightweight YOLOv8 model
-    model = YOLO("yolov8n.pt")
+    model = YOLO("yolov5n.pt")
 
     # Train (GPU-optimized config)
     results = model.train(
@@ -27,7 +27,7 @@ def main():
     )
 
     # Save results
-    results_dir = "runs/detect/object-detection-model-1"
+    results_dir = "runs/detect/object-detection-model-10"
     os.makedirs(results_dir, exist_ok=True)
     results_path = os.path.join(results_dir, "results.pkl")
     with open(results_path, "wb") as f:
