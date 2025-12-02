@@ -2,6 +2,7 @@ import cv2
 import os
 from ultralytics import YOLO
 import time
+import threading, cv2
 
 MODEL_PATH = "C:/Middlesex/HomeBuddy/scripts/object-detection/training/runs/detect/object-detection-model-3/weights/best.pt"
 
@@ -12,9 +13,12 @@ if not os.path.exists(MODEL_PATH):
 # --- Load YOLO model ---
 model = YOLO(MODEL_PATH)
 
-
 def yolo_live_camera_detection():
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+    cap.set(cv2.CAP_PROP_FPS, 60)
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
     if not cap.isOpened():
         print("Error: Could not open camera")

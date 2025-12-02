@@ -93,32 +93,28 @@ def main():
 
                         # ---------- VOICE COMMANDS ----------
                         if text == "$b000#":
+                           print("Wake word detected.")
+
+                        elif text == "$b004#":
                             move_forward(rosmaster)
 
-                        elif text == "forward":
-                            move_forward(rosmaster)
-
-                        elif text == "back":
+                        elif text == "$b005#":
                             move_backward(rosmaster)
 
-                        elif text == "left":
+                        elif text == "$b006#":
                             turn_left(rosmaster)
 
-                        elif text == "right":
+                        elif text == "$b007#":
                             turn_right(rosmaster)
 
-                        elif text == "stop":
+                        elif text == "$b002#":
                             stop(rosmaster)
 
-                        elif text == "grab":
+                        elif text == "$b011#":
                             grab(rosmaster)
 
                         elif text == "loose":
                             release(rosmaster)
-
-                        elif text.startswith("track"):
-                            color = text.split(" ")[1] if len(text.split(" ")) > 1 else "unknown"
-                            print(f"Action: Track {color} (Not implemented yet)")
 
         except KeyboardInterrupt:
             print("Exiting...")
