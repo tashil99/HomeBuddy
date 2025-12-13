@@ -24,7 +24,7 @@ Home Buddy is a smart autonomous robot project that integrates **computer vision
 This is the **core script used during the robot demonstration**. It is responsible for:
 
 * Running real-time object detection
-* Interaction with the robot hardware (motors, sensors)
+* Interaction with the robot hardware (motors, servos)
 * Making movement and control decisions based on detected objects
 * Integrating the trained detection model into the live system
 
