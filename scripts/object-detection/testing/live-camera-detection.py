@@ -4,7 +4,7 @@ from ultralytics import YOLO
 import time
 import threading, cv2
 
-MODEL_PATH = "C:/Middlesex/HomeBuddy/scripts/object-detection/training/runs/detect/object-detection-model-3/weights/best.pt"
+MODEL_PATH = "/scripts/object-detection/training/runs/detect/object-detection-model-2/weights/best.pt"
 
 # --- Check model exists ---
 if not os.path.exists(MODEL_PATH):
@@ -14,7 +14,7 @@ if not os.path.exists(MODEL_PATH):
 model = YOLO(MODEL_PATH)
 
 def yolo_live_camera_detection():
-    cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
+    cap = cv2.VideoCapture(0)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
     cap.set(cv2.CAP_PROP_FPS, 60)

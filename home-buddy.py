@@ -1,184 +1,197 @@
-import cv2
-import os
+import cv2 as cv
+import serial
 import time
 import math
-import threading
 from ultralytics import YOLO
 from Rosmaster_Lib import Rosmaster
 
-robot = Rosmaster()
+# Creating an object for the ROSMASTER X3 PLUS
+homeBuddy = Rosmaster()
 
-MODEL_PATH = "/home/pi/Desktop/HomeBuddy/scripts/object-detection/training/runs/detect/object-detection-model-12/weights/best.pt"
-
-if not os.path.exists(MODEL_PATH):
-    raise FileNotFoundError(f"Model not found: {MODEL_PATH}")
-
-yolo_model = YOLO(MODEL_PATH)
-
-latest_frame = None
-processed_frame = None
-detected_class = None
-running = True
-lock = threading.Lock()
-
-TARGET_CLASS = "glasses"
-
-def camera_thread():
-    global latest_frame, running
-
-    cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-    cap.set(cv2.CAP_PROP_FPS, 60)
-    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-
-    if not cap.isOpened():
-        print("Camera error: cannot open.")
-        running = False
-        return
-
-    while running:
-        ret, frame = cap.read()
-        if ret:
-            with lock:
-                latest_frame = frame.copy()
-
-    cap.release()
-
-def yolo_thread():
-    global latest_frame, processed_frame, detected_class, running
-
-    class_colors = {
-        'book': (0, 255, 0),
-        'cup': (255, 0, 0),
-        'glasses': (0, 0, 255),
-        'keys': (255, 255, 0),
-        'phone': (255, 0, 255),
-        'shoes': (0, 255, 255)
-    }
-
-    while running:
-        with lock:
-            frame = latest_frame.copy() if latest_frame is not None else None
-
-        if frame is None:
-            time.sleep(0.001)
-            continue
-
-        results = yolo_model.predict(
-            source=frame,
-            imgsz=320,
-            conf=0.25,
-            iou=0.55,
-            device="cpu",
-            verbose=False
-        )
-
-        boxes = results[0].boxes
-        names = results[0].names
-
-        detected_class = None
-
-        if boxes is not None:
-            for box in boxes:
-                cls = int(box.cls[0])
-                name = names[cls]
-
-                if name == TARGET_CLASS:
-                    detected_class = name
-
-                x1, y1, x2, y2 = map(int, box.xyxy[0])
-                color = class_colors.get(name, (255, 255, 255))
-
-                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-                label = f"{name}: {float(box.conf[0]):.2f}"
-                cv2.putText(frame, label, (x1, y1 - 5),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
-
-        processed_frame = frame
+# Import fine-tuned yolo model for object detection
+yolo_model = YOLO(
+    "/home/pi/Desktop/HomeBuddy/scripts/object-detection/training/runs/detect/object-detection-model-2/weights/best.pt")
 
 LINEAR_SPEED = 0.3
 ANGULAR_SPEED = 0.8
-STOP_DELAY = 0.5
 
-POINT_A = (0.0, 0.0)
-POINT_B = (1.0, 0.0)
+# Function to make the robot rotate by a given degree
+def rotate_by_degree(degrees):
+    radians = math.radians(degrees)
+    duration = abs(radians / ANGULAR_SPEED)
+    speed = ANGULAR_SPEED if degrees > 0 else -ANGULAR_SPEED
+    homeBuddy.set_car_motion(0, 0, speed)
+    time.sleep(duration)
+    homeBuddy.set_car_motion(0, 0, 0)
 
-def stop(bot):
-    bot.set_car_motion(0, 0, 0)
-    time.sleep(STOP_DELAY)
+# Function to make the robot move straight by a given distance
+def move_straight(distance):
+    duration = abs(distance / LINEAR_SPEED)
+    homeBuddy.set_car_motion(LINEAR_SPEED, 0, 0)
+    time.sleep(duration)
+    homeBuddy.set_car_motion(0, 0, 0)
 
-def rotate_to_angle(bot, target_angle):
-    direction = 1 if target_angle > 0 else -1
-    bot.set_car_motion(0, 0, direction * ANGULAR_SPEED)
-    time.sleep(abs(target_angle) / ANGULAR_SPEED)
-    stop(bot)
+# Function to return to the starting position
+def return_to_start(distance):
+    print("Returning to start position...")
+    rotate_by_degree(220)
+    move_straight(distance)
 
-def move_straight(bot, distance_m):
-    direction = 1 if distance_m > 0 else -1
-    bot.set_car_motion(direction * LINEAR_SPEED, 0, 0)
-    time.sleep(abs(distance_m) / LINEAR_SPEED)
-    stop(bot)
+# Function to navigate to a specific point
+def navigate_sequence(angle, distance, target_name, target_object):
+    print(f"Going to {target_name}")
 
-def go_to_point(bot, x0, y0, xt, yt):
-    dx = xt - x0
-    dy = yt - y0
-    angle = math.atan2(dy, dx)
-    distance = math.sqrt(dx*dx + dy*dy)
-    rotate_to_angle(bot, angle)
-    move_straight(bot, distance)
+    # Step 1: Rotate and move
+    rotate_by_degree(angle)
+    move_straight(distance)
 
-def perform_grab_sequence(bot):
-    print("[INFO] Grabbing object...")
-    bot.set_uart_servo_angle(1, 90, 90)
-    bot.set_uart_servo_angle(2, 90, 90)
-    bot.set_uart_servo_angle(3, 0, 0)
-    bot.set_uart_servo_angle(4, 45, 45)
-    bot.set_uart_servo_angle(5, 90, 90)
-    bot.set_uart_servo_angle(6, 0, 90)
-    time.sleep(1.2)
+    # Step 2: Lower camera to detect object
+    homeBuddy.set_uart_servo_angle_array([90, 15, 15, 55, 90, 30])
+    time.sleep(2)
 
-def wait_for_detection():
-    global detected_class
+    print(f"Scanning for {target_object}...")
 
-    print(f"[INFO] Waiting for YOLO to detect: {TARGET_CLASS}")
+    # Object detection
+    cap = cv.VideoCapture(0)
+    object_found = False
 
-    while running:
-        if detected_class == TARGET_CLASS:
-            print(f"[INFO] Target detected: {TARGET_CLASS}")
-            return True
+    for _ in range(10):
+        ret, frame = cap.read()
+        if not ret:
+            continue
 
-        if processed_frame is not None:
-            cv2.imshow("YOLO Detection", processed_frame)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                return False
+        results = yolo_model(frame)
 
-        time.sleep(0.01)
+        for r in results:
+            cls_names = r.names
 
-    return False
+            for box in r.boxes:
+                cls_id = int(box.cls[0])
+                detected_name = cls_names[cls_id]
+
+                if detected_name.lower() == target_object.lower():
+                    print(f"TARGET OBJECT FOUND: {detected_name}")
+                    object_found = True
+                    break
+            if object_found:
+                break
+        if object_found:
+            break
+
+    cap.release()
+
+    # Step 3: Grab the object if the detected object matches the target object
+    if object_found:
+        print(f"{target_object} detected. Grabbing...")
+
+        # Grab motion
+        homeBuddy.set_uart_servo_angle_array([90, 15, 25, 55, 90, 140])
+        time.sleep(2)
+
+        # Lift arm
+        homeBuddy.set_uart_servo_angle_array([90, 90, 0, 90, 90, 140])
+        time.sleep(2)
+
+    else:
+        print(f"{target_object} NOT found. Skipping grab.")
+
+    # Return to the starting position if not found
+    return_to_start(distance)
+
+
+# Function to go fetch phone
+def go_to_point_A():
+    print("Going to point A")
+    navigate_sequence(55, 0.75, "A", "phone")
+
+
+# Function to bring cup
+def go_to_point_B():
+    print("Going to point B")
+    navigate_sequence(-30, 1.0, "B", "cup")
+
+
+# Function to bring glasses
+def go_to_point_C():
+    print("Going to point C")
+    navigate_sequence(30, 1.2, "C", "glasses")
+
+
+# Function to bring shoes
+def go_to_point_D():
+    print("Going to point D")
+    navigate_sequence(-50, 0.90, "D", "shoes")
+
+
+def send_voice_feedback(ser, code):
+    try:
+        ser.write(code.encode())
+        print(f"Voice feedback sent: {code}")
+    except:
+        print("Voice feedback FAILED!")
+
 
 def main():
-    global running
+    print("HomeBuddy Initialized")
 
-    print("\n[INFO] Starting YOLO + Camera Threads...")
-    threading.Thread(target=camera_thread, daemon=True).start()
-    threading.Thread(target=yolo_thread, daemon=True).start()
+    # Initial arm position
+    homeBuddy.set_uart_servo_angle_array([90, 90, 90, 90, 90, 180])
+    time.sleep(2)
+    homeBuddy.set_uart_servo_angle_array([90, 90, 0, 90, 90, 180])
+    time.sleep(2)
 
-    # 1. Move to Point B
-    go_to_point(robot, POINT_A[0], POINT_A[1], POINT_B[0], POINT_B[1])
+    # Initialize voice module
+    try:
+        ser = serial.Serial("/dev/ttyUSB2", 115200, timeout=1)
+        time.sleep(1)
+    except Exception as e:
+        print("Serial port error:", e)
+        return
 
-    # 2. Wait until YOLO sees the object
-    if wait_for_detection():
-        perform_grab_sequence(robot)
+    cmds = [b'AT+ASR=ON\r\n', b'AT+CMD=1\r\n', b'AT+DEBUG=1\r\n']
+    for cmd in cmds:
+        ser.write(cmd)
+        time.sleep(0.2)
+    ser.flushInput()
+    print("Voice module ready to listen to commands..")
 
-        # 3. Return to Point A
-        go_to_point(robot, POINT_B[0], POINT_B[1], POINT_A[0], POINT_A[1])
-    else:
-        print("[WARN] Object not detected — aborting.")
-        stop(robot)
+    while True:
+        try:
+            if ser.in_waiting:
+                data = ser.readline()
+                if data:
+                    command_received = data.decode(errors="ignore").strip().lower()
+                    print("Voice command_received heard: ", command_received)
 
-    running = False
-    cv2.destroyAllWindows()
+                    # Wake up robot using wake word "Hi Yahboom!"
+                    if command_received == "$b000#":
+                        print("Wake word detected.")
+
+                    # Going to Location A (location of phone)
+                    elif command_received == "$b019#":
+                        send_voice_feedback(ser, "$A019#")
+                        go_to_point_A()
+
+                    # Going to location B (Location of cup)
+                    elif command_received == "$b020#":
+                        send_voice_feedback(ser, "$A020#")
+                        go_to_point_B()
+
+                    # Going to location C (Location of glasses)
+                    elif command_received == "$b021#":
+                        send_voice_feedback(ser, "$A021#")
+                        go_to_point_C()
+
+                    # Going to location D (Location of shoes)
+                    elif command_received == "$b022#":
+                        send_voice_feedback(ser, "$A022#")
+                        go_to_point_D()
+
+
+        except KeyboardInterrupt:
+            print("Exiting...")
+            ser.close()
+            break
 
 
 if __name__ == "__main__":
